@@ -24,7 +24,7 @@ void LSPServer::sendResponse(const json& response) {
 void LSPServer::initialize(const json& params) {
 	json capabilities = {
 		{"completionProvider", {
-			{"triggerCharacters", {".", ":"}}
+			{"triggerCharacters", true}
 		}},
 		{"textDocumentSync", 1} // Full sync
 	};
