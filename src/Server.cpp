@@ -21,7 +21,7 @@ void LSPServer::sendResponse(const json& response) {
 	std::cout.flush();
 }
 
-void LSPServer::initialize(const json& params) {
+void LSPServer::initialize(const json& params, const json& id) {
 	json capabilities = {
 		{"completionProvider", {
 			{"triggerCharacters", true}
@@ -30,7 +30,7 @@ void LSPServer::initialize(const json& params) {
 	};
 
 	sendResponse({
-		{"id", 1},
+		{"id", id},
 			{"result", {
 				{"capabilities", capabilities}
 			}},
@@ -50,7 +50,7 @@ void LSPServer::handleCompletion(const json& params, const json& id) {
 
 void LSPServer::handleMessage(const json& msg) {
 	if (msg.contains("id") && msg["method"] == "initialize") {
-		initialize(msg["params"]);
+		initialize(msg["params"], msg["id"]);
 	}
 	else if (msg["method"] == "textDocument/didOpen") {
 		auto doc = msg["params"]["textDocument"];
