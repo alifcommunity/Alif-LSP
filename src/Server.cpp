@@ -34,7 +34,7 @@ void LSPServer::initialize(const json& params) {
 			{"result", {
 				{"capabilities", capabilities}
 			}},
-	});
+		});
 }
 
 void LSPServer::handleCompletion(const json& params, const json& id) {
@@ -89,22 +89,18 @@ void LSPServer::run() {
 		std::cin.read(buffer.data(), length);
 
 		// تأكد من قراءة كل البيانات
-		if (!std::cin)
-		{
+		if (!std::cin) {
 			std::cerr << "[Alif-LSP] Error reading input" << std::endl;
 			return;
 		}
 		// هنا نقوم بتحليل الرسالة الواردة
-		// Parse the JSON message
-		try
-		{
+		try {
 			json msg = json::parse(buffer.begin(), buffer.end());
-			// ممكن نعمل لوج للرسالة المستلمة لأغراض التصحيح
+			// ممكن نعمل log للرسالة المستلمة لأغراض التصحيح
 			// std::cerr << "[Alif-LSP] Received: " << msg.dump(2) << std::endl;
 			handleMessage(msg);
 		}
-		catch (const std::exception &e)
-		{
+		catch (const std::exception& e) {
 
 			std::cerr << "[Alif-LSP] JSON Parse Error: " << e.what() << std::endl;
 		}
