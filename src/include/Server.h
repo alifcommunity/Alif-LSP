@@ -6,7 +6,7 @@ using json = nlohmann::json;
 
 class LSPServer {
 public:
-	void run();
+	int run();
 	void handleMessage(const json& msg);
 
 private:

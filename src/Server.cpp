@@ -24,7 +24,7 @@ void LSPServer::sendResponse(const json& response) {
 void LSPServer::initialize(const json& params) {
 	json capabilities = {
 		{"completionProvider", {
-			{"triggerCharacters", {".", ":"}}
+			{"triggerCharacters", true}
 		}},
 		{"textDocumentSync", 1} // Full sync
 	};
@@ -66,10 +66,14 @@ void LSPServer::handleMessage(const json& msg) {
 	}
 }
 
-void LSPServer::run() {
+int LSPServer::run() {
 	// Set binary mode for stdin/stdout
-	_setmode(_fileno(stdin), _O_BINARY);
-	_setmode(_fileno(stdout), _O_BINARY);
+	int stdinInit = _setmode(_fileno(stdin), _O_BINARY);
+	int stdoutInit = _setmode(_fileno(stdout), _O_BINARY);
+	if (stdinInit == -1 or stdoutInit == -1) {
+		perror("Fatal Error: Cannot set mode");
+		return -1;
+	}
 
 	std::cerr << "[Alif-LSP] Alif Server Started" << std::endl;
 
@@ -91,7 +95,7 @@ void LSPServer::run() {
 		// تأكد من قراءة كل البيانات
 		if (!std::cin) {
 			std::cerr << "[Alif-LSP] Error reading input" << std::endl;
-			return;
+			return -1;
 		}
 		// هنا نقوم بتحليل الرسالة الواردة
 		try {
@@ -105,4 +109,6 @@ void LSPServer::run() {
 			std::cerr << "[Alif-LSP] JSON Parse Error: " << e.what() << std::endl;
 		}
 	}
+
+	return 0;
 }

@@ -8,7 +8,5 @@ int main() {
 	setvbuf(stdout, nullptr, _IONBF, 0);
 
 	LSPServer server{};
-	server.run();
-
-	return 0;
+	return server.run();
 }
