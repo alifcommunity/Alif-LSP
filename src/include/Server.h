@@ -11,7 +11,6 @@ public:
 
 private:
 	void sendResponse(const json& response);
-	void sendNotification(const json& notification);
 	// 1: Error, 2: Warning, 3: Info, 4: Log
 	void logMessage(const std::string& message, int type = 3);
 	void initialize(const json& params);

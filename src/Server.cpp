@@ -49,10 +49,7 @@ void LSPServer::handleCompletion(const json& params, const json& id) {
 }
 
 void LSPServer::handleMessage(const json& msg) {
-	if (msg.contains("id") && msg["method"] == "initialize") {
-		initialize(msg["params"]);
-	}
-	else if (msg["method"] == "textDocument/didOpen") {
+	if (msg["method"] == "textDocument/didOpen") {
 		auto doc = msg["params"]["textDocument"];
 		docManager.openDocument(doc["uri"], doc["text"]);
 	}
@@ -77,6 +74,44 @@ int LSPServer::run() {
 
 	std::cerr << "[Alif-LSP] Alif Server Started" << std::endl;
 
+	// Handle initialization handshake before main loop
+	bool initialized = false;
+	while (!initialized) {
+		// Read Content-Length header
+		std::string line;
+		size_t length = 0;
+		while (std::getline(std::cin, line)) {
+			if (line.find("Content-Length: ") == 0) {
+				length = std::stoul(line.substr(16));
+			}
+			if (line == "\r") break;
+		}
+
+		// Read JSON body
+		std::vector<char> buffer(length);
+		std::cin.read(buffer.data(), length);
+
+		// تأكد من قراءة كل البيانات
+		if (!std::cin) {
+			return -1;
+		}
+
+		try {
+			json msg = json::parse(buffer.begin(), buffer.end());
+			if (msg.contains("id") && msg["method"] == "initialize") {
+				initialize(msg["params"]);
+			}
+			else if (msg.contains("method") && msg["method"] == "initialized") {
+				initialized = true;
+				std::cerr << "[Alif-LSP] Initialization complete" << std::endl;
+			}
+		}
+		catch (const std::exception& e) {
+			std::cerr << "[Alif-LSP] JSON Parse Error during initialization: " << e.what() << std::endl;
+		}
+	}
+
+	// Main message loop
 	while (true) {
 		// Read Content-Length header
 		std::string line;
@@ -94,18 +129,15 @@ int LSPServer::run() {
 
 		// تأكد من قراءة كل البيانات
 		if (!std::cin) {
-			std::cerr << "[Alif-LSP] Error reading input" << std::endl;
 			return -1;
 		}
 		// هنا نقوم بتحليل الرسالة الواردة
 		try {
 			json msg = json::parse(buffer.begin(), buffer.end());
-			// ممكن نعمل log للرسالة المستلمة لأغراض التصحيح
-			// std::cerr << "[Alif-LSP] Received: " << msg.dump(2) << std::endl;
+
 			handleMessage(msg);
 		}
 		catch (const std::exception& e) {
-
 			std::cerr << "[Alif-LSP] JSON Parse Error: " << e.what() << std::endl;
 		}
 	}
