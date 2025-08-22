@@ -3,9 +3,60 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <cctype>
 
 extern DocumentManager docManager;
 
+std::string Completion::getCurrentWord(const std::string& uri, int line, int character) {
+	std::string documentText = docManager.getDocumentText(uri);
+	if (documentText.empty()) {
+		return "";
+	}
+
+	// Find the target line
+	int currentLine = 0;
+	int lineStart = 0;
+	for (size_t i = 0; i < documentText.length(); i++) {
+		if (documentText[i] == '\n') {
+			if (currentLine == line) {
+				// Found our target line
+				std::string targetLineText = documentText.substr(lineStart, i - lineStart);
+				
+				// Check if character position is valid
+				if (character < 0 || character > static_cast<int>(targetLineText.length())) {
+					return "";
+				}
+
+				// Find word start by going backwards from cursor
+				int wordStart = character;
+				while (wordStart > 0 && !std::isspace(targetLineText[wordStart - 1])) {
+					wordStart--;
+				}
+
+				return targetLineText.substr(wordStart, character - wordStart);
+			}
+			currentLine++;
+			lineStart = i + 1;
+		}
+	}
+	
+	// Handle last line (no trailing newline)
+	if (currentLine == line) {
+		std::string targetLineText = documentText.substr(lineStart);
+		if (character < 0 || character > static_cast<int>(targetLineText.length())) {
+			return "";
+		}
+		
+		int wordStart = character;
+		while (wordStart > 0 && !std::isspace(targetLineText[wordStart - 1])) {
+			wordStart--;
+		}
+		
+		return targetLineText.substr(wordStart, character - wordStart);
+	}
+
+	return "";
+}
 
 json Completion::getSuggestions(const std::string& uri, int line, int character) {
 	// Define enhanced completion item structure
@@ -65,9 +116,23 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 		return items;
 		}();
 
+	// Get the current word being typed at cursor position
+	std::string currentWord = getCurrentWord(uri, line, character);
+	
+	// Filter suggestions based on current word
+	std::vector<CompletionItem> filteredSuggestions;
+	for (const auto& item : suggestions) {
+		// If no current word, show all suggestions
+		if (currentWord.empty() || 
+			// Check if the suggestion starts with the current word
+			item.label.substr(0, currentWord.length()) == currentWord) {
+			filteredSuggestions.push_back(item);
+		}
+	}
+
 	// Convert to JSON with proper snippet handling
 	json items = json::array();
-	for (const auto& item : suggestions) {
+	for (const auto& item : filteredSuggestions) {
 		json j = {
 			{"label", item.label},
 			{"kind", item.kind},
