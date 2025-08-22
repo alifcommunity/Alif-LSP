@@ -13,49 +13,55 @@ std::string Completion::getCurrentWord(const std::string& uri, int line, int cha
 		return "";
 	}
 
-	// Find the target line
-	int currentLine = 0;
-	int lineStart = 0;
-	for (size_t i = 0; i < documentText.length(); i++) {
-		if (documentText[i] == '\n') {
-			if (currentLine == line) {
-				// Found our target line
-				std::string targetLineText = documentText.substr(lineStart, i - lineStart);
-				
-				// Check if character position is valid
-				if (character < 0 || character > static_cast<int>(targetLineText.length())) {
-					return "";
-				}
-
-				// Find word start by going backwards from cursor
-				int wordStart = character;
-				while (wordStart > 0 && !std::isspace(targetLineText[wordStart - 1])) {
-					wordStart--;
-				}
-
-				return targetLineText.substr(wordStart, character - wordStart);
-			}
-			currentLine++;
-			lineStart = i + 1;
+	// Split document into lines
+	std::vector<std::string> lines;
+	std::string currentLineText;
+	for (char c : documentText) {
+		if (c == '\n') {
+			lines.push_back(currentLineText);
+			currentLineText.clear();
+		} else {
+			currentLineText += c;
 		}
 	}
+	// Add the last line if it doesn't end with newline
+	if (!currentLineText.empty() || documentText.back() != '\n') {
+		lines.push_back(currentLineText);
+	}
+
+	// Check if line number is valid
+	if (line < 0 || line >= static_cast<int>(lines.size())) {
+		return "";
+	}
+
+	const std::string& targetLine = lines[line];
 	
-	// Handle last line (no trailing newline)
-	if (currentLine == line) {
-		std::string targetLineText = documentText.substr(lineStart);
-		if (character < 0 || character > static_cast<int>(targetLineText.length())) {
-			return "";
-		}
-		
-		int wordStart = character;
-		while (wordStart > 0 && !std::isspace(targetLineText[wordStart - 1])) {
-			wordStart--;
-		}
-		
-		return targetLineText.substr(wordStart, character - wordStart);
+	// For simplicity, treat character position as byte position
+	// This works for LSP since editors typically send byte positions
+	if (character < 0 || character > static_cast<int>(targetLine.length())) {
+		return "";
 	}
 
-	return "";
+	// Find word start by going backwards from cursor
+	int wordStart = character;
+	while (wordStart > 0) {
+		char prevChar = targetLine[wordStart - 1];
+		// Break on whitespace or common punctuation
+		if (std::isspace(static_cast<unsigned char>(prevChar)) || 
+			prevChar == '(' || prevChar == ')' || prevChar == '{' || prevChar == '}' ||
+			prevChar == '[' || prevChar == ']' || prevChar == ';' || prevChar == ',' ||
+			prevChar == '.' || prevChar == ':') {
+			break;
+		}
+		wordStart--;
+	}
+
+	// Extract the word from wordStart to character position
+	if (wordStart >= character) {
+		return "";
+	}
+
+	return targetLine.substr(wordStart, character - wordStart);
 }
 
 json Completion::getSuggestions(const std::string& uri, int line, int character) {
