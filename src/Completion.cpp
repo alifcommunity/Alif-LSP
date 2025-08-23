@@ -14,7 +14,6 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 		int kind{};  // LSP CompletionItemKind
 		std::string detail{};
 		std::string documentation{};
-		std::string insertText{}; // For snippet content
 	};
 
 	// Build static suggestions (sorted alphabetically)
@@ -29,13 +28,13 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 			"او", "مرر", "ارجع", "حاول", "بينما", "عند", "ولد"
 		};
 		for (const auto& kw : keywords) {
-			items.push_back({ kw, 14, "كلمة مفتاحية", "كلمة مفتاحية محجوزة", "" });
+			items.push_back({ kw, 14, "محجوزة", "كلمة مفتاحية محجوزة" });
 		}
 
 		// Constants (Kind: 21 - Constant)
 		const std::vector<std::string> constants = { "خطا", "عدم", "صح" };
 		for (const auto& c : constants) {
-			items.push_back({ c, 21, "ثابت", "قيمة ثابتة ضمنية", "" });
+			items.push_back({ c, 21, "ثابت", "قيمة ثابتة ضمنية" });
 		}
 
 		// Built-in functions (Kind: 3 - Function)
@@ -45,7 +44,7 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 			"نص", "اصل", "مترابطة", "نوع"
 		};
 		for (const auto& fn : functions) {
-			items.push_back({ fn, 3, "دالة ضمنية", "دالة من مكتبة ألف الضمنية", "" });
+			items.push_back({ fn, 3, "دالة ضمنية", "دالة من مكتبة ألف الضمنية" });
 		}
 
 		// Built-in types (Kind: 7 - Class)
@@ -54,18 +53,8 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 			"صحيح", "مصفوفة", "كائن", "نص", "مترابطة", "نوع"
 		};
 		for (const auto& t : types) {
-			items.push_back({ t, 7, "نوع", "نوع بيانات اساسي", "" });
+			items.push_back({ t, 7, "نوع", "نوع بيانات اساسي" });
 		}
-
-		// Snippets (Kind: 15 - Snippet)
-		items.push_back({ "لاجل", 15, "قالب", "قالب حالة لاجل",
-			"لاجل ${1:} في :\n\t" });
-		items.push_back({ "بينما", 15, "قالب", "قالب حالة بينما",
-			"بينما ${1:}:\n\t" });
-		items.push_back({ "صنف", 15, "قالب", "قالب تعريف صنف",
-			"صنف ${1:}:\n\tدالة _تهيئة_(هذا):\n\t\t" });
-		items.push_back({ "دالة", 15, "قالب", "قالب تعريف دالة",
-			"دالة ${1:}():\n\t" });
 
 		// Sort alphabetically
 		std::sort(items.begin(), items.end(),
@@ -85,12 +74,6 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 			{"detail", item.detail},
 			{"documentation", item.documentation}
 		};
-
-		// Special handling for snippets
-		if (item.kind == 15) {
-			j["insertTextFormat"] = 2;  // Snippet format
-			j["insertText"] = item.insertText;
-		}
 		items.push_back(j);
 	}
 
