@@ -178,47 +178,173 @@ void LSPServer::handleMessage(const json& msg) {
 	}
 }
 
+// التحقق من صحة بنية رسالة LSP الأساسية
+bool LSPServer::isValidLSPMessage(const json& msg) {
+	// التحقق من أن الرسالة كائن JSON
+	if (!msg.is_object()) {
+		Logger::debug("Message validation failed: not a JSON object");
+		return false;
+	}
+	
+	// التحقق من وجود حقل jsonrpc (اختياري لكن مفيد)
+	if (msg.contains("jsonrpc")) {
+		if (!msg["jsonrpc"].is_string() || msg["jsonrpc"] != "2.0") {
+			Logger::debug("Message validation failed: invalid jsonrpc version");
+			return false;
+		}
+	}
+	
+	// التحقق من وجود حقل method
+	if (!msg.contains("method")) {
+		Logger::debug("Message validation failed: missing method field");
+		return false;
+	}
+	
+	if (!msg["method"].is_string()) {
+		Logger::debug("Message validation failed: method is not a string");
+		return false;
+	}
+	
+	// التحقق من أن method ليس فارغاً
+	std::string method = msg["method"].get<std::string>();
+	if (method.empty()) {
+		Logger::debug("Message validation failed: empty method");
+		return false;
+	}
+	
+	// التحقق من أن id موجود وصالح للطلبات التي تحتاج رد
+	if (msg.contains("id")) {
+		if (!msg["id"].is_number() && !msg["id"].is_string() && !msg["id"].is_null()) {
+			Logger::debug("Message validation failed: invalid id type");
+			return false;
+		}
+	}
+	
+	Logger::debug("Message validation passed for method: " + method);
+	return true;
+}
+
 int LSPServer::run() {
 	// Set binary mode for stdin/stdout
 	int stdinInit = _setmode(_fileno(stdin), _O_BINARY);
 	int stdoutInit = _setmode(_fileno(stdout), _O_BINARY);
 	if (stdinInit == -1 or stdoutInit == -1) {
-		perror("Fatal Error: Cannot set mode");
+		Logger::error("Fatal Error: Cannot set binary mode for stdin/stdout");
+		perror("Cannot set mode");
 		return -1;
 	}
 
 	Logger::info("Alif Server Started");
 
 	while (true) {
-		// Read Content-Length header
+		// قراءة رؤوس الرسالة مع التحقق من الصحة
 		std::string line;
 		size_t length = 0;
+		bool contentLengthFound = false;
+		
+		// قراءة الرؤوس حتى الوصول لسطر فارغ
 		while (std::getline(std::cin, line)) {
-			if (line.find("Content-Length: ") == 0) {
-				length = std::stoul(line.substr(16));
+			// إزالة الأحرف الإضافية من نهاية السطر
+			if (!line.empty() && line.back() == '\r') {
+				line.pop_back();
 			}
-			if (line == "\r") break;
+			
+			// البحث عن رأس Content-Length
+			if (line.find("Content-Length: ") == 0) {
+				std::string lengthStr = line.substr(16);
+				
+				// التحقق من صحة القيمة الرقمية
+				try {
+					length = std::stoul(lengthStr);
+					contentLengthFound = true;
+					
+					// التحقق من الحدود المعقولة للرسالة
+					if (length > 1024 * 1024) { // حد أقصى 1MB
+						Logger::warn("Message too large: " + std::to_string(length) + " bytes");
+						continue; // تجاهل الرسالة الكبيرة جداً
+					}
+					if (length == 0) {
+						Logger::warn("Empty message received (Content-Length: 0)");
+						continue;
+					}
+					
+					Logger::debug("Content-Length: " + std::to_string(length));
+				}
+				catch (const std::exception& e) {
+					Logger::warn("Invalid Content-Length header: " + lengthStr);
+					continue; // تجاهل الرسالة مع رأس خاطئ
+				}
+			}
+			
+			// نهاية الرؤوس
+			if (line.empty()) {
+				break;
+			}
 		}
-
-		// Read JSON body
+		
+		// التحقق من وجود رأس Content-Length
+		if (!contentLengthFound) {
+			Logger::warn("Message received without Content-Length header");
+			continue;
+		}
+		
+		// قراءة محتوى الرسالة مع الحماية من الأخطاء
 		std::vector<char> buffer(length);
 		std::cin.read(buffer.data(), length);
-
-		// تأكد من قراءة كل البيانات
+		
+		// التحقق من نجاح القراءة
 		if (!std::cin) {
-			Logger::error("Error reading input");
-			return -1;
+			Logger::error("Failed to read message body (" + std::to_string(length) + " bytes)");
+			// محاولة استعادة الحالة
+			std::cin.clear();
+			continue;
 		}
-		// هنا نقوم بتحليل الرسالة الواردة
+		
+		// التحقق من قراءة البيانات كاملة
+		size_t bytesRead = std::cin.gcount();
+		if (bytesRead != length) {
+			Logger::warn("Incomplete message read: expected " + std::to_string(length) + 
+						" bytes, got " + std::to_string(bytesRead));
+			continue;
+		}
+		
+		// تحليل JSON مع معالجة محسنة للأخطاء
 		try {
+			// التحقق من أن البيانات ليست فارغة
+			if (buffer.empty()) {
+				Logger::warn("Empty message buffer received");
+				continue;
+			}
+			
+			// تحليل JSON
 			json msg = json::parse(buffer.begin(), buffer.end());
-			// ممكن نعمل log للرسالة المستلمة لأغراض التصحيح
-			// std::cerr << "[Alif-LSP] Received: " << msg.dump(2) << std::endl;
+			
+			// التحقق من أن الرسالة تحتوي على حقول أساسية
+			if (msg.is_null() || (!msg.is_object())) {
+				Logger::warn("Invalid JSON structure: not an object");
+				continue;
+			}
+			
+			// التحقق من صحة رسالة LSP
+			if (!isValidLSPMessage(msg)) {
+				Logger::warn("Invalid LSP message structure received");
+				continue;
+			}
+			
+			Logger::debug("Message parsed successfully");
 			handleMessage(msg);
 		}
+		catch (const json::parse_error& e) {
+			// خطأ في تحليل JSON مع تفاصيل أكثر
+			Logger::error("JSON Parse Error at byte " + std::to_string(e.byte) + 
+						": " + std::string(e.what()));
+			
+			// إظهار جزء من البيانات المشكوكة للتشخيص
+			std::string preview(buffer.begin(), buffer.begin() + std::min(size_t(100), buffer.size()));
+			Logger::debug("Message preview: " + preview + (buffer.size() > 100 ? "..." : ""));
+		}
 		catch (const std::exception& e) {
-
-			Logger::error("JSON Parse Error: " + std::string(e.what()));
+			Logger::error("Unexpected error during message processing: " + std::string(e.what()));
 		}
 	}
 
