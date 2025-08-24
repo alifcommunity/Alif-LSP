@@ -2,10 +2,10 @@
 
 
 
-Logger::Logger() {
-	// تهيئة المتغير الثابت - المستوى الافتراضي للتسجيل
-	LogLevel currentLevel = LogLevel::INFO;
-}
+
+// تهيئة المتغير الثابت - المستوى الافتراضي للتسجيل
+LogLevel Logger::currentLevel = LogLevel::INFO;
+
 
 
 void Logger::log(LogLevel level, const std::string& message) {
