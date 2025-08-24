@@ -15,4 +15,5 @@ private:
 	void sendErrorResponse(const json& id, int code, const std::string& message);
 	void initialize(const json& params);
 	void handleCompletion(const json& params, const json& id);
+	bool isValidLSPMessage(const json& msg);
 };
