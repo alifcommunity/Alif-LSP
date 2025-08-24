@@ -1,6 +1,5 @@
 #include "Completion.h"
 #include "DocManager.h"
-#include <algorithm>
 #include <vector>
 #include <string>
 

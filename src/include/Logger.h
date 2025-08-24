@@ -14,6 +14,7 @@ enum class LogLevel {
 // فئة التسجيل - للتعامل مع رسائل السجل
 class Logger {
 public:
+
 	// تعيين مستوى التسجيل الحالي
 	static void setLevel(LogLevel level) {
 		currentLevel = level;
