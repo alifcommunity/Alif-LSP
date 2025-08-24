@@ -14,7 +14,9 @@
 #include <algorithm>
 #include <stdio.h>
 #include <fcntl.h>
+#if defined(_WIN32)
 #include <io.h>
+#endif
 
 
 DocumentManager docManager;
@@ -257,7 +259,8 @@ bool LSPServer::isValidLSPMessage(const json& msg) {
 }
 
 int LSPServer::run() {
-	// Set binary mode for stdin/stdout
+#if defined(_WIN32)
+	// Set binary mode for stdin/stdout on Windows
 	int stdinInit = _setmode(_fileno(stdin), _O_BINARY);
 	int stdoutInit = _setmode(_fileno(stdout), _O_BINARY);
 	if (stdinInit == -1 or stdoutInit == -1) {
@@ -265,6 +268,7 @@ int LSPServer::run() {
 		perror("Cannot set mode");
 		return -1;
 	}
+#endif
 
 	Logger::info("Alif Server Started");
 
