@@ -84,18 +84,23 @@ void LSPServer::handleCompletion(const json& params, const json& id) {
 		return;
 	}
 	
+	std::string uri = textDoc["uri"].get<std::string>();
+	
+	// التحقق من وجود المستند في DocumentManager
+	if (!docManager.hasDocument(uri)) {
+		Logger::warn("Completion requested for unopened document: " + uri);
+		sendErrorResponse(id, -32603, "Document not found: " + uri);
+		return;
+	}
+	
 	try {
-		json result = completionEngine.getSuggestions(
-			textDoc["uri"].get<std::string>(),
-			line,
-			character
-		);
+		json result = completionEngine.getSuggestions(uri, line, character);
 		sendResponse({ {"id", id}, {"result", result} });
-		Logger::debug("Completion request processed successfully");
+		Logger::debug("Completion request processed successfully for: " + uri);
 	}
 	catch (const std::exception& e) {
 		sendErrorResponse(id, -32603, "Internal error: " + std::string(e.what()));
-		Logger::error("Completion processing failed: " + std::string(e.what()));
+		Logger::error("Completion processing failed for " + uri + ": " + std::string(e.what()));
 	}
 }
 
@@ -133,8 +138,11 @@ void LSPServer::handleMessage(const json& msg) {
 			Logger::warn("didOpen request has invalid textDocument structure");
 			return;
 		}
-		docManager.openDocument(doc["uri"], doc["text"]);
-		Logger::debug("Document opened: " + doc["uri"].get<std::string>());
+		DocumentError result = docManager.openDocument(doc["uri"], doc["text"]);
+		if (result != DocumentError::SUCCESS) {
+			Logger::warn("Failed to open document " + doc["uri"].get<std::string>() + 
+						": " + DocumentManager::errorToString(result));
+		}
 	}
 	// معالجة تحديث مستند
 	else if (method == "textDocument/didChange") {
@@ -157,8 +165,28 @@ void LSPServer::handleMessage(const json& msg) {
 			return;
 		}
 		
-		docManager.updateDocument(doc["uri"], changes[0]["text"]);
-		Logger::debug("Document updated: " + doc["uri"].get<std::string>());
+		DocumentError result = docManager.updateDocument(doc["uri"], changes[0]["text"]);
+		if (result != DocumentError::SUCCESS) {
+			Logger::warn("Failed to update document " + doc["uri"].get<std::string>() + 
+						": " + DocumentManager::errorToString(result));
+		}
+	}
+	// معالجة إغلاق مستند
+	else if (method == "textDocument/didClose") {
+		if (!msg.contains("params") || !msg["params"].contains("textDocument")) {
+			Logger::warn("didClose request missing required parameters");
+			return;
+		}
+		auto doc = msg["params"]["textDocument"];
+		if (!doc.contains("uri") || !doc["uri"].is_string()) {
+			Logger::warn("didClose request has invalid textDocument structure");
+			return;
+		}
+		DocumentError result = docManager.closeDocument(doc["uri"]);
+		if (result != DocumentError::SUCCESS) {
+			Logger::warn("Failed to close document " + doc["uri"].get<std::string>() + 
+						": " + DocumentManager::errorToString(result));
+		}
 	}
 	// معالجة طلب الإكمال التلقائي
 	else if (method == "textDocument/completion") {
