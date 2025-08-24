@@ -1,6 +1,7 @@
 #include "Server.h"
 #include "DocManager.h"
 #include "Completion.h"
+#include "Logger.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -75,7 +76,7 @@ int LSPServer::run() {
 		return -1;
 	}
 
-	std::cerr << "[Alif-LSP] Alif Server Started" << std::endl;
+	Logger::info("Alif Server Started");
 
 	while (true) {
 		// Read Content-Length header
@@ -94,7 +95,7 @@ int LSPServer::run() {
 
 		// تأكد من قراءة كل البيانات
 		if (!std::cin) {
-			std::cerr << "[Alif-LSP] Error reading input" << std::endl;
+			Logger::error("Error reading input");
 			return -1;
 		}
 		// هنا نقوم بتحليل الرسالة الواردة
@@ -106,7 +107,7 @@ int LSPServer::run() {
 		}
 		catch (const std::exception& e) {
 
-			std::cerr << "[Alif-LSP] JSON Parse Error: " << e.what() << std::endl;
+			Logger::error("JSON Parse Error: " + std::string(e.what()));
 		}
 	}
 

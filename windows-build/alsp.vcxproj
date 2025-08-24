@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\src\include\Completion.h" />
     <ClInclude Include="..\src\include\DocManager.h" />
+    <ClInclude Include="..\src\include\Logger.h" />
     <ClInclude Include="..\src\include\Server.h" />
     <ClInclude Include="..\src\third-party\json.hpp" />
   </ItemGroup>
@@ -28,6 +29,7 @@
     <ClCompile Include="..\src\AlifLSP.cpp" />
     <ClCompile Include="..\src\Completion.cpp" />
     <ClCompile Include="..\src\DocManager.cpp" />
+    <ClCompile Include="..\src\Logger.cpp" />
     <ClCompile Include="..\src\Server.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
