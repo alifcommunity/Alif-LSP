@@ -6,7 +6,7 @@
 extern DocumentManager docManager;
 
 
-json Completion::getSuggestions(const std::string& uri, int line, int character) {
+json Completion::getSuggestions() {
 	// Define enhanced completion item structure
 	struct CompletionItem {
 		std::string label{};
