@@ -56,7 +56,7 @@ DocumentError DocumentManager::updateDocument(const std::string& uri, const std:
 	}
 }
 
-// إغلاق مستند
+// إغلاق مستند  
 DocumentError DocumentManager::closeDocument(const std::string& uri) {
 	// التحقق من صحة URI
 	if (!isValidURI(uri)) {
