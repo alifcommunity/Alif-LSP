@@ -305,7 +305,7 @@ int LSPServer::run() {
 					Logger::debug("Content-Length: " + std::to_string(length));
 				}
 				catch (const std::exception& e) {
-					Logger::warn("Invalid Content-Length header: " + lengthStr);
+					Logger::warn("Invalid Content-Length header: " + lengthStr + " - " + std::string(e.what()));
 					continue; // تجاهل الرسالة مع رأس خاطئ
 				}
 			}

@@ -117,7 +117,7 @@ std::string Completion::getLineText(const std::string& documentText, int line) {
 
 std::string Completion::getWordPrefix(const std::string& lineText, int character) {
 	if (character > static_cast<int>(lineText.length())) {
-		character = lineText.length();
+		character = static_cast<int>(lineText.length());
 	}
 	
 	// العثور على بداية الكلمة الحالية (للخلف من المؤشر)
