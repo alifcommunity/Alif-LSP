@@ -2,7 +2,7 @@
 # المتغيرات الأساسية
 
 # مترجم C++
-CXX = g++
+CXX = c++
 
 # مسارات المشروع
 SRC_DIR = ../src
@@ -16,7 +16,7 @@ TARGET = alif-lsp
 BUILD_DIR = build
 
 # إعدادات المترجم
-CXXFLAGS = -std=c++17 -Wall -Wextra -I$(INCLUDE_DIR) -I$(THIRD_PARTY_DIR)
+CXXFLAGS = -std=c++20 -Wall -Wextra -I$(INCLUDE_DIR) -I$(THIRD_PARTY_DIR)
 
 # إعدادات لوضع التصحيح
 DEBUG_FLAGS = -g -O0 -DDEBUG
