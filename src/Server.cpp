@@ -9,14 +9,12 @@
 #include <cctype>
 #if defined(_WIN32)
 #define NOMINMAX
+#include <io.h>
 #include <windows.h>
 #endif
 #include <algorithm>
 #include <stdio.h>
 #include <fcntl.h>
-#if defined(_WIN32)
-#include <io.h>
-#endif
 
 
 DocumentManager docManager;
