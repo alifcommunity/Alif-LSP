@@ -261,7 +261,7 @@ int LSPServer::run() {
 	// Set binary mode for stdin/stdout on Windows
 	int stdinInit = _setmode(_fileno(stdin), _O_BINARY);
 	int stdoutInit = _setmode(_fileno(stdout), _O_BINARY);
-	if (stdinInit == -1 or stdoutInit == -1) {
+	if (stdinInit == -1 || stdoutInit == -1) {
 		Logger::error("Fatal Error: Cannot set binary mode for stdin/stdout");
 		perror("Cannot set mode");
 		return -1;
@@ -318,6 +318,17 @@ int LSPServer::run() {
 
 		// التحقق من وجود رأس Content-Length
 		if (!contentLengthFound) {
+			// فحص حالة انقطاع الاتصال من العميل
+			if (std::cin.eof()) {
+				Logger::info("Client disconnected (EOF), shutting down server");
+				break; // خروج من الحلقة الرئيسية
+			}
+			if (std::cin.fail()) {
+				Logger::warn("Input stream error, shutting down server");
+				break; // خروج من الحلقة الرئيسية
+			}
+
+			// رسالة غير صحيحة - تسجيل تحذير والمتابعة
 			Logger::warn("Message received without Content-Length header");
 			continue;
 		}
