@@ -1,0 +1,8 @@
+# Requirements for Alif LSP UI Test
+# No external dependencies required - using only Python standard library
+# tkinter is included with Python
+# json, subprocess, threading, time, queue are all standard library modules
+
+# Optional: If you want to add more advanced features in the future
+# requests>=2.25.0  # For HTTP-based LSP servers
+# websockets>=10.0  # For WebSocket-based LSP servers
