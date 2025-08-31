@@ -21,9 +21,21 @@ DocumentManager docManager;
 Completion completionEngine;
 
 void LSPServer::sendResponse(const json& response) {
-	std::string str = response.dump();
-	std::cout << "Content-Length: " << str.size() << "\r\n\r\n" << str;
-	std::cout.flush();
+	try {
+		std::string str = response.dump();
+		std::cout << "Content-Length: " << str.size() << "\r\n\r\n" << str;
+		std::cout.flush();
+		
+		// Check if output operation was successful
+		if (std::cout.fail()) {
+			Logger::error("Failed to send response - output stream error");
+		} else {
+			Logger::debug("Response sent successfully (" + std::to_string(str.size()) + " bytes)");
+		}
+	}
+	catch (const std::exception& e) {
+		Logger::error("Error sending response: " + std::string(e.what()));
+	}
 }
 
 // إرسال رد خطأ وفقاً لمعايير LSP
@@ -40,7 +52,7 @@ void LSPServer::sendErrorResponse(const json& id, int code, const std::string& m
 	Logger::warn("Error response sent: " + message);
 }
 
-void LSPServer::initialize(const json& params) {
+void LSPServer::initialize(const json& params, const json& requestId) {
 	json capabilities = {
 		{"completionProvider", {
 			{"triggerCharacters", true}
@@ -49,11 +61,12 @@ void LSPServer::initialize(const json& params) {
 	};
 
 	sendResponse({
-		{"id", 1},
-			{"result", {
-				{"capabilities", capabilities}
-			}},
-		});
+		{"jsonrpc", "2.0"},
+		{"id", requestId},
+		{"result", {
+			{"capabilities", capabilities}
+		}}
+	});
 }
 
 void LSPServer::handleCompletion(const json& params, const json& id) {
@@ -99,7 +112,11 @@ void LSPServer::handleCompletion(const json& params, const json& id) {
 
 	try {
 		json result = completionEngine.getSuggestions(uri, line, character);
-		sendResponse({ {"id", id}, {"result", result} });
+		sendResponse({ 
+			{"jsonrpc", "2.0"},
+			{"id", id}, 
+			{"result", result} 
+		});
 		Logger::debug("Completion request processed successfully for: " + uri);
 	}
 	catch (const std::exception& e) {
@@ -128,7 +145,7 @@ void LSPServer::handleMessage(const json& msg) {
 			sendErrorResponse(msg["id"], -32602, "Initialize request missing params");
 			return;
 		}
-		initialize(msg["params"]);
+		initialize(msg["params"], msg["id"]);
 	}
 	// معالجة فتح مستند
 	else if (method == "textDocument/didOpen") {
@@ -261,7 +278,7 @@ int LSPServer::run() {
 	// Set binary mode for stdin/stdout on Windows
 	int stdinInit = _setmode(_fileno(stdin), _O_BINARY);
 	int stdoutInit = _setmode(_fileno(stdout), _O_BINARY);
-	if (stdinInit == -1 or stdoutInit == -1) {
+	if (stdinInit == -1 || stdoutInit == -1) {
 		Logger::error("Fatal Error: Cannot set binary mode for stdin/stdout");
 		perror("Cannot set mode");
 		return -1;
@@ -305,7 +322,7 @@ int LSPServer::run() {
 					Logger::debug("Content-Length: " + std::to_string(length));
 				}
 				catch (const std::exception& e) {
-					Logger::warn("Invalid Content-Length header: " + lengthStr);
+					Logger::warn("Invalid Content-Length header: " + lengthStr + " - " + std::string(e.what()));
 					continue; // تجاهل الرسالة مع رأس خاطئ
 				}
 			}
@@ -318,6 +335,17 @@ int LSPServer::run() {
 
 		// التحقق من وجود رأس Content-Length
 		if (!contentLengthFound) {
+			// فحص حالة انقطاع الاتصال من العميل
+			if (std::cin.eof()) {
+				Logger::info("Client disconnected (EOF), shutting down server");
+				break; // خروج من الحلقة الرئيسية
+			}
+			if (std::cin.fail()) {
+				Logger::warn("Input stream error, shutting down server");
+				break; // خروج من الحلقة الرئيسية
+			}
+
+			// رسالة غير صحيحة - تسجيل تحذير والمتابعة
 			Logger::warn("Message received without Content-Length header");
 			continue;
 		}
