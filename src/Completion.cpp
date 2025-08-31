@@ -78,7 +78,7 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 		}();
 
 	// تحويل إلى JSON مع معالجة مناسبة للمقاطع
-	json items = json::array();
+	std::vector<json> items;
 	for (const auto& item : suggestions) {
 		json j = {
 			{"label", item.label},
@@ -99,7 +99,13 @@ json Completion::getSuggestions(const std::string& uri, int line, int character)
 	Logger::debug("Completion: prefix='" + prefix + "', context=" + std::to_string(static_cast<int>(context.type)) + 
 		", total=" + std::to_string(prefixFilteredItems.size()) + " items");
 	
-	return { {"isIncomplete", false}, {"items", prefixFilteredItems} };
+	// تحويل النتيجة النهائية إلى JSON array
+	json finalItems = json::array();
+	for (const auto& item : prefixFilteredItems) {
+		finalItems.push_back(item);
+	}
+	
+	return { {"isIncomplete", false}, {"items", finalItems} };
 }
 
 // تنفيذ الدوال المساعدة
@@ -190,11 +196,19 @@ std::vector<json> Completion::filterByPrefix(const std::vector<json>& items, con
 	}
 	
 	std::vector<json> filtered;
-	for (const auto& item : items) {
-		std::string label = item["label"];
-		if (label.find(prefix) == 0) {  // يبدأ بالبادئة
-			filtered.push_back(item);
+	try {
+		for (const auto& item : items) {
+			if (item.contains("label") && item["label"].is_string()) {
+				std::string label = item["label"];
+				if (!label.empty() && label.find(prefix) == 0) {  // يبدأ بالبادئة
+					filtered.push_back(item);
+				}
+			}
 		}
+	}
+	catch (const std::exception& e) {
+		Logger::error("Error in filterByPrefix: " + std::string(e.what()));
+		return items;  // Return original items on error
 	}
 	
 	return filtered;
@@ -203,10 +217,16 @@ std::vector<json> Completion::filterByPrefix(const std::vector<json>& items, con
 std::vector<json> Completion::filterByContext(const std::vector<json>& items, const CompletionContext& context) {
 	std::vector<json> filtered;
 	
-	for (const auto& item : items) {
-		int kind = item["kind"];
-		std::string label = item["label"];
-		bool includeItem = true;
+	try {
+		for (const auto& item : items) {
+			if (!item.contains("kind") || !item.contains("label") || 
+				!item["kind"].is_number() || !item["label"].is_string()) {
+				continue;  // Skip malformed items
+			}
+			
+			int kind = item["kind"];
+			std::string label = item["label"];
+			bool includeItem = true;
 		
 		switch (context.type) {
 		case CompletionContextType::AFTER_FUNCTION:
@@ -245,9 +265,14 @@ std::vector<json> Completion::filterByContext(const std::vector<json>& items, co
 			break;
 		}
 		
-		if (includeItem) {
-			filtered.push_back(item);
+			if (includeItem) {
+				filtered.push_back(item);
+			}
 		}
+	}
+	catch (const std::exception& e) {
+		Logger::error("Error in filterByContext: " + std::string(e.what()));
+		return items;  // Return original items on error
 	}
 	
 	return filtered;
