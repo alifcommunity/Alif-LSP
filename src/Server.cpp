@@ -176,8 +176,14 @@ void LSPServer::handleMessage(const json& msg) {
 		auto changes = msg["params"]["contentChanges"];
 
 		if (!doc.contains("uri") || !doc["uri"].is_string() ||
-			!changes.is_array() || changes.empty()) {
+			!changes.is_array()) {
 			Logger::warn("didChange request has invalid structure");
+			return;
+		}
+
+		// Handle empty changes array (valid LSP - means no changes)
+		if (changes.empty()) {
+			Logger::debug("Received didChange with empty contentChanges array - no changes to apply");
 			return;
 		}
 
