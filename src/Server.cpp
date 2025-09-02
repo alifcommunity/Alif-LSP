@@ -98,7 +98,7 @@ void LSPServer::handleCompletion(const json& params, const json& id) {
 	}
 
 	try {
-		json result = completionEngine.getSuggestions(uri, line, character);
+		json result = completionEngine.getSuggestions();
 		sendResponse({ {"id", id}, {"result", result} });
 		Logger::debug("Completion request processed successfully for: " + uri);
 	}
